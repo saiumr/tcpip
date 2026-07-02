@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Web Server · 测试成功</title>
+    <style>
+        /* 全局重置 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0b0e1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* ---- 动态背景粒子（纯CSS） ---- */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(circle at 20% 30%, rgba(0, 150, 255, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(138, 43, 226, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(0, 255, 200, 0.05) 0%, transparent 40%);
+            z-index: 0;
+            pointer-events: none;
+            animation: bgPulse 12s ease-in-out infinite alternate;
+        }
+        @keyframes bgPulse {
+            0% { opacity: 0.6; transform: scale(1); }
+            100% { opacity: 1; transform: scale(1.05); }
+        }
+
+        /* 浮动光点 (伪元素) */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image:
+                radial-gradient(2px 2px at 10% 20%, rgba(255,255,255,0.2), transparent),
+                radial-gradient(2px 2px at 30% 60%, rgba(255,255,255,0.15), transparent),
+                radial-gradient(2px 2px at 50% 10%, rgba(255,255,255,0.2), transparent),
+                radial-gradient(2px 2px at 70% 80%, rgba(255,255,255,0.15), transparent),
+                radial-gradient(2px 2px at 90% 40%, rgba(255,255,255,0.2), transparent),
+                radial-gradient(1px 1px at 15% 90%, rgba(255,255,255,0.1), transparent),
+                radial-gradient(1px 1px at 60% 30%, rgba(255,255,255,0.1), transparent),
+                radial-gradient(1px 1px at 85% 10%, rgba(255,255,255,0.1), transparent);
+            background-size: 200px 200px;
+            background-repeat: repeat;
+            z-index: 0;
+            pointer-events: none;
+            animation: floatDots 30s linear infinite;
+        }
+        @keyframes floatDots {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-50px, -30px); }
+        }
+
+        /* ---- 主卡片 (炫酷玻璃) ---- */
+        .card {
+            max-width: 640px;
+            width: 100%;
+            background: rgba(20, 28, 45, 0.75);
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            border-radius: 3rem;
+            padding: 2.8rem 2.8rem 2.2rem;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: opacity 0.6s cubic-bezier(0.23, 1, 0.32, 1), transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+            z-index: 10;
+            position: relative;
+            color: #f0f4ff;
+        }
+
+        .card.hidden {
+            opacity: 0;
+            transform: scale(0.92) translateY(30px);
+            pointer-events: none;
+        }
+
+        /* 标题区域 */
+        .card-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .card-header h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(96, 165, 250, 0.2);
+        }
+        .card-header .subtitle {
+            font-size: 1.1rem;
+            color: #94a3b8;
+            margin-top: 0.4rem;
+            letter-spacing: 0.3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .card-header .subtitle .badge {
+            display: inline-block;
+            background: #22c55e;
+            color: #0b0e1a;
+            font-weight: 700;
+            font-size: 0.7rem;
+            padding: 0.2rem 0.8rem;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            -webkit-text-fill-color: #0b0e1a; /* 覆盖渐变 */
+            background-clip: unset;
+        }
+
+        /* 状态条 */
+        .status-bar {
+            background: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(4px);
+            border-radius: 2rem;
+            padding: 0.9rem 1.8rem;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 0.8rem 1.5rem;
+            margin: 1.8rem 0 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .status-item {
+            display: flex;
+            align-items: baseline;
+            gap: 0.4rem;
+        }
+        .status-item .label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: #64748b;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+        }
+        .status-item .value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+        .status-item .value.online {
+            color: #34d399;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .status-item .value.online::before {
+            content: "●";
+            font-size: 1.2rem;
+            animation: pulse-dot 1.8s ease-in-out infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.8); }
+        }
+        #time {
+            font-variant-numeric: tabular-nums;
+            color: #cbd5e1;
+        }
+
+        .message {
+            text-align: center;
+            font-size: 0.95rem;
+            color: #cbd5e1;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 0.8rem 1.5rem;
+            border-radius: 3rem;
+            border-left: 3px solid #60a5fa;
+            margin: 1.2rem 0 1.8rem;
+            backdrop-filter: blur(4px);
+        }
+
+        /* ---- GOT IT 按钮 (霓虹) ---- */
+        .btn-gotit {
+            display: block;
+            width: 130px;
+            height: 130px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: #fff;
+            border: none;
+            font-size: 1.7rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            cursor: pointer;
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.4), 0 0 60px rgba(139, 92, 246, 0.2);
+            transition: all 0.3s ease;
+            margin: 0.5rem auto 0;
+            user-select: none;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-gotit::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 60%);
+            opacity: 0;
+            transition: opacity 0.4s;
+            transform: rotate(0deg);
+        }
+        .btn-gotit:hover {
+            transform: scale(1.06);
+            box-shadow: 0 0 40px rgba(59, 130, 246, 0.6), 0 0 80px rgba(139, 92, 246, 0.3);
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+        }
+        .btn-gotit:hover::after {
+            opacity: 1;
+        }
+        .btn-gotit:active {
+            transform: scale(0.94);
+        }
+
+        footer {
+            margin-top: 2.2rem;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #475569;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding-top: 1.2rem;
+            letter-spacing: 0.5px;
+        }
+
+        /* ---- 图库展示区 (全屏) ---- */
+        .gallery {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(8, 12, 24, 0.94);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            z-index: 20;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.7s cubic-bezier(0.23, 1, 0.32, 1);
+            overflow-y: auto;
+            cursor: default;
+        }
+        .gallery.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 22px;
+            width: 100%;
+            max-width: 1100px;
+            padding: 1rem;
+        }
+
+        .gallery-item {
+            background: rgba(255,255,255,0.04);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            transform: rotate(var(--rot, 0deg)) scale(1);
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.06);
+            backdrop-filter: blur(2px);
+        }
+        .gallery-item:hover {
+            transform: rotate(0deg) scale(1.04);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+            border-color: rgba(255,255,255,0.15);
+        }
+        .gallery-item img {
+            width: 100%;
+            height: 180px;
+            object-fit: contain;
+            display: block;
+            background: #121826;
+        }
+        .gallery-item {
+            --rot: 0deg;
+        }
+
+        /* ---- 大图预览模态框 ---- */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            cursor: pointer;
+            padding: 2rem;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 16px;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
+            cursor: default;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .modal .close-btn {
+            position: absolute;
+            top: 30px;
+            right: 40px;
+            font-size: 2.8rem;
+            color: #fff;
+            cursor: pointer;
+            background: rgba(0,0,0,0.4);
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, transform 0.2s;
+            border: 1px solid rgba(255,255,255,0.1);
+            font-weight: 300;
+            line-height: 1;
+        }
+        .modal .close-btn:hover {
+            background: rgba(255,255,255,0.15);
+            transform: rotate(90deg);
+        }
+
+        /* 响应式 */
+        @media (max-width: 600px) {
+            .card {
+                padding: 2rem 1.5rem 1.8rem;
+                border-radius: 2rem;
+            }
+            .card-header h1 {
+                font-size: 2.2rem;
+            }
+            .btn-gotit {
+                width: 100px;
+                height: 100px;
+                font-size: 1.3rem;
+            }
+            .gallery-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 14px;
+            }
+            .gallery-item img {
+                height: 130px;
+            }
+            .modal .close-btn {
+                top: 15px;
+                right: 20px;
+                width: 44px;
+                height: 44px;
+                font-size: 2rem;
+            }
+        }
+
+        /* 卡片入场动画 */
+        .card {
+            animation: cardIn 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        }
+        @keyframes cardIn {
+            0% { opacity: 0; transform: translateY(40px) scale(0.96); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== 主卡片 ===== -->
+    <div class="card" id="mainCard">
+        <div class="card-header">
+            <h1>✦ Web Server</h1>
+            <div class="subtitle">
+                <span class="badge">在线</span>
+                <span>GET 请求成功 · 服务运行中</span>
+            </div>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="label">状态</span>
+                <span class="value online">运行中</span>
+            </div>
+            <div class="status-item">
+                <span class="label">时间</span>
+                <span class="value" id="time">--:--:--</span>
+            </div>
+            <div class="status-item">
+                <span class="label">方法</span>
+                <span class="value">GET</span>
+            </div>
+        </div>
+
+        <p class="message">
+            ⚡ 当你看到这个页面时，表示服务器响应正常
+        </p>
+
+        <button class="btn-gotit" id="gotItBtn">GOT IT</button>
+
+        <footer>
+            <p>:D web server By cola · 2026</p>
+        </footer>
+    </div>
+
+    <!-- ===== 图库展示区 ===== -->
+    <div class="gallery" id="galleryContainer">
+        <div class="gallery-grid" id="galleryGrid">
+            <!-- JS 动态生成 -->
+        </div>
+    </div>
+
+    <!-- ===== 放大预览 ===== -->
+    <div class="modal" id="modalOverlay">
+        <button class="close-btn" id="modalCloseBtn">✕</button>
+        <img id="modalImage" src="" alt="预览" />
+    </div>
+
+    <script>
+        (function() {
+            // ---- 时钟 ----
+            const timeEl = document.getElementById('time');
+            function updateTime() {
+                const now = new Date();
+                timeEl.textContent = now.toLocaleTimeString('zh-CN', { hour12: false });
+            }
+            updateTime();
+            setInterval(updateTime, 1000);
+
+            // ---- 图片列表（与之前一致） ----
+            const imageFiles = [
+                '1.jpg', '2.jpg', '3.jpg', '4.jpg', 
+                '5.jpg', '6.jpg', '7.jpg', '8.jpg', 
+                '9.jpg', '10.gif', '11.jpg', '12.jpg', 
+                '13.jpg', '14.jpg', '3.jpg', '16.jpg', 
+            ];
+
+            // ---- 生成图库 ----
+            const grid = document.getElementById('galleryGrid');
+            const base = 'images/';
+            imageFiles.forEach((f, i) => {
+                const item = document.createElement('div');
+                item.className = 'gallery-item';
+                const rot = (Math.random() * 8 - 4).toFixed(1);
+                item.style.setProperty('--rot', rot + 'deg');
+
+                const img = document.createElement('img');
+                img.src = base + f;
+                img.alt = '图片 ' + (i+1);
+                img.loading = 'lazy';
+                img.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openModal(img.src);
+                });
+                item.appendChild(img);
+                grid.appendChild(item);
+            });
+
+            // ---- 切换逻辑 ----
+            const card = document.getElementById('mainCard');
+            const gallery = document.getElementById('galleryContainer');
+            const gotItBtn = document.getElementById('gotItBtn');
+
+            function showGallery() {
+                card.classList.add('hidden');
+                setTimeout(() => {
+                    gallery.classList.add('active');
+                }, 120);
+            }
+
+            function showCard() {
+                gallery.classList.remove('active');
+                setTimeout(() => {
+                    card.classList.remove('hidden');
+                }, 300);
+            }
+
+            gotItBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showGallery();
+            });
+
+            // 点击图库空白返回
+            gallery.addEventListener('click', (e) => {
+                if (e.target === gallery) showCard();
+            });
+
+            // ESC
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    if (gallery.classList.contains('active')) showCard();
+                    if (modalOverlay.classList.contains('active')) closeModal();
+                }
+            });
+
+            // ---- 放大预览 ----
+            const modalOverlay = document.getElementById('modalOverlay');
+            const modalImage = document.getElementById('modalImage');
+            const modalCloseBtn = document.getElementById('modalCloseBtn');
+
+            function openModal(src) {
+                modalImage.src = src;
+                modalOverlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+            function closeModal() {
+                modalOverlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) closeModal();
+            });
+            modalCloseBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeModal();
+            });
+
+        })();
+    </script>
+</body>
+</html>
